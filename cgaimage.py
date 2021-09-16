@@ -148,7 +148,7 @@ elif sys.argv[0].lower() == "create":
             shutil.copy(cFolder+c4c0, sys.argv[3])
         elif mode == "4c1":
             shutil.copy(cFolder+c4c1, sys.argv[3])
-        elif mode in m2Bpp:
+        elif (mode in m2Bpp) or (mode in m512):
             shutil.copy(cFolder+c512c, sys.argv[3])
         elif mode in m1bpp:
             shutil.copy(cFolder+c2c, sys.argv[3])
