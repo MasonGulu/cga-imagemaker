@@ -152,6 +152,9 @@ elif sys.argv[0].lower() == "create":
             shutil.copy(cFolder+c512c, sys.argv[3])
         elif mode in m1bpp:
             shutil.copy(cFolder+c2c, sys.argv[3])
+        else:
+            print("Unsupported mode!")
+            sys.exit()
         outputfile = open(sys.argv[3], "ab")
     if mode in m2bpp:
         if (size != (320, 200) and resizeEnable):
@@ -318,7 +321,17 @@ elif sys.argv[0].lower() == "create":
     else:
         print("Invalid mode.")
         sys.exit(0)
-    im.show()
+    # Image resizing to correct aspect ratio
+    if resizeEnable:
+        # Don't bother if resizing isn't enabled
+        if mode in m1bpp:
+            # Double height
+            im = im.resize((640,400), resample=Image.NEAREST)
+        elif mode in m2Bpp or mode in m512:
+            # Double width
+            im = im.resize((160,100), resample=Image.NEAREST)
+    im.save("post_"+sys.argv[2])
+    #im.show()
 elif sys.argv[0].lower() == "pattern":
     # Generate a test pattern
     if len(sys.argv) < 3:
@@ -345,7 +358,7 @@ elif sys.argv[0].lower() == "pattern":
                 color = palette[colorIndex]
                 colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
                 im.putpixel((x,y), colorT)
-        im.show()
+        #im.show()
     elif mode in m1bpp:
         # 1 bit per pixel, 640x200
         if mode == "2c":
@@ -361,7 +374,7 @@ elif sys.argv[0].lower() == "pattern":
                 color = palette[colorIndex]
                 colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
                 im.putpixel((x,y), colorT)
-        im.show()
+        #im.show()
     elif mode in m2Bpp:
         # 2 bytes per pixel, 80x100
         if mode == "256co0":
@@ -388,7 +401,7 @@ elif sys.argv[0].lower() == "pattern":
                 color = palette[colorIndex]
                 colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
                 im.putpixel((x,y), colorT)
-        im.show()
+        #im.show()
     elif mode in m512:
         # 2 bytes per pixel, 80x100
         if mode == "512co":
@@ -408,7 +421,7 @@ elif sys.argv[0].lower() == "pattern":
                 color = palette[colorIndex]
                 colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
                 im.putpixel((x,y), colorT)
-        im.show()
+        #im.show()
     else:
         print("Mode not supported.", mode)
     im.save(sys.argv[2], "JPEG", quality=100, subsampling=0)
