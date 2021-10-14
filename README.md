@@ -5,6 +5,11 @@ To use this program you will need Python 3 installed. You will also need https:/
 
 After installing Python 3 and pillow simply download the zip file from this repository, and extract it to a directory of your choice. For this script to function properly you *MUST* leave the com-templates folder in the same directory as the script *AND* you must only call the script from within the folder it's contained in. 
 
+# Usage
+The script has 2 main modes of operation, along with a help option.
+* create - This takes an image mode, input JPG, and output COM. This will resize the image, convert it to a COM file, and also output a post processed image which will represent how it will appear on a compatible CGA computer/card.
+* pattern - This takes an image mode and an output JPG. This creates a new image which will have every color of the palette on it, in an appropriate size to be turned into a COM file.
+
 ## com-templates folder
 The com-templates folder has several partial com files in it, which handle setting the video mode and moving the image into CGA ram. The appropriate file is then copied and the image data is appended to the end of it.
 
