@@ -326,11 +326,21 @@ elif sys.argv[0].lower() == "create":
         # Don't bother if resizing isn't enabled
         if mode in m1bpp:
             # Double height
-            im = im.resize((640,400), resample=Image.NEAREST)
+            im2 = Image.new("RGB", (640,400))
+            for x in range(0, 640):
+                for y in range(0, 200):
+                    im2.putpixel((x,y*2), im.getpixel((x,y)))
+                    im2.putpixel((x,(y*2)+1), im.getpixel((x,y)))
+            im = im2
         elif mode in m2Bpp or mode in m512:
             # Double width
-            im = im.resize((160,100), resample=Image.NEAREST)
-    im.save("post_"+sys.argv[2])
+            im2 = Image.new("RGB", (160,100))
+            for x in range(0, 80):
+                for y in range(0, 100):
+                    im2.putpixel((x*2,y), im.getpixel((x,y)))
+                    im2.putpixel(((x*2)+1,y), im.getpixel((x,y)))
+            im = im2
+    im.save("post_"+sys.argv[2], quality=95, subsampling=0)
     #im.show()
 elif sys.argv[0].lower() == "pattern":
     # Generate a test pattern
@@ -421,10 +431,9 @@ elif sys.argv[0].lower() == "pattern":
                 color = palette[colorIndex]
                 colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
                 im.putpixel((x,y), colorT)
-        #im.show()
     else:
         print("Mode not supported.", mode)
-    im.save(sys.argv[2], "JPEG", quality=100, subsampling=0)
+    im.save(sys.argv[2], "JPEG", quality=95, subsampling=0)
 else:
 	print("Usage:")
 	print("cgaimage.py [help, create, pattern]")
