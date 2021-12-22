@@ -23,7 +23,7 @@ from PIL import Image
 import sys 
 import math
 import shutil
-resizeEnable = True # When enabled this script will attempt to resize images to fit the selected mode
+resizeEnable = True # When enabled this script will attempt to resize images to fit the selected mode, after cropping to the correct aspect ratio
 splitFile = False # When enabled seperate even/odd files will be written
 comMode = True # Make main file into an executable comfile instead of a binary file
 
@@ -52,6 +52,13 @@ c512c = "com512c.bin"
 # Functions
 def RGBDifference(value, compare):
     return abs(value[0] - (compare>>16)) + abs(value[1] - ((compare>>8)&0xff)) + abs(value[2] - (compare&0xff))
+
+def cropImage(im, size):
+    height = round(size[0]*0.625/2)
+    top = round(size[1]/2 - height)
+    bottom = round(size[1]/2 + height)
+    im = im.crop(box=(0, top, size[0], bottom)) # left, up, right, down
+    return im
 
 def getPixel(im,x,y,palette):
     pixel = im.getpixel((x,y))
@@ -159,6 +166,7 @@ elif sys.argv[0].lower() == "create":
     if mode in m2bpp:
         if (size != (320, 200) and resizeEnable):
             print("Image size is not correct. Attempting resize.")
+            im = cropImage(im, size)
             im = im.resize((320, 200))
             size = (320,200)
         # 2 bit per pixel mode
@@ -214,6 +222,7 @@ elif sys.argv[0].lower() == "create":
     elif mode in m1bpp:
         if (size != (640, 200) and resizeEnable):
             print("Image size is not correct. Attempting resize.")
+            im = cropImage(im, size)
             im = im.resize((640, 200))
             size = (640,200)
         even = []
@@ -266,6 +275,7 @@ elif sys.argv[0].lower() == "create":
     elif mode in m2Bpp:
         if (size != (80, 100) and resizeEnable):
             print("Image size is not correct. Attempting resize.")
+            im = cropImage(im, size)
             im = im.resize((80, 100))
             size = (80,100)
         # Two byte per pixel High Color Text mode
