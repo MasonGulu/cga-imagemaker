@@ -370,10 +370,10 @@ operations = {
 
 sys.argv = sys.argv[1:]
 
-#try:
-print("This program is licensed under GPLv2 and comes with ABSOLUTELY NO WARRANTY.")
-for x in range(0,4):
-    sys.argv.append("") # TODO this properly
-operations[sys.argv[0]](sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-#except:
-    #print("Usage: cgaimage.py [help, create, pattern]")
+try:
+    print("This program is licensed under GPLv2 and comes with ABSOLUTELY NO WARRANTY.")
+    for x in range(0,4):
+        sys.argv.append("") # TODO this properly
+    operations[sys.argv[0]](sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+except:
+    print("Usage: cgaimage.py [help, create, pattern]")
