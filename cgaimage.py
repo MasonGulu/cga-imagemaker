@@ -23,9 +23,6 @@ from PIL import Image
 import sys 
 import math
 import shutil
-resizeEnable = True # When enabled this script will attempt to resize images to fit the selected mode, after cropping to the correct aspect ratio
-splitFile = False # When enabled seperate even/odd files will be written
-comMode = True # Make main file into an executable comfile instead of a binary file
 
 # Palettes
 p4c0  = [0x000000, 0x5c9c0c, 0x993100, 0x9e5a02]
@@ -50,82 +47,52 @@ c2c = "com2c.bin"
 c512c = "com512c.bin"
 
 # Functions
-def RGBDifference(value, compare):
+def _RGBDifference(value, compare):
     return abs(value[0] - (compare>>16)) + abs(value[1] - ((compare>>8)&0xff)) + abs(value[2] - (compare&0xff))
 
-def cropImage(im, size):
+def _cropImage(im, size):
     height = round(size[0]*0.625/2)
     top = round(size[1]/2 - height)
     bottom = round(size[1]/2 + height)
     im = im.crop(box=(0, top, size[0], bottom)) # left, up, right, down
     return im
 
-def getPixel(im,x,y,palette):
+def _getPixel(im,x,y,palette):
     pixel = im.getpixel((x,y))
     closestIndex = 0
     closestValue = 256*256*256
     for i in range(0, len(palette)):
-        if RGBDifference(pixel, palette[i]) < closestValue:
-            closestValue = RGBDifference(pixel, palette[i])
+        if _RGBDifference(pixel, palette[i]) < closestValue:
+            closestValue = _RGBDifference(pixel, palette[i])
             closestIndex = i
                 
     im.putpixel((x,y), (palette[closestIndex] >> 16, (palette[closestIndex] >> 8)&0xff, palette[closestIndex]&0xff))
     return closestIndex
 
-sys.argv = sys.argv[1:]
-if len(sys.argv) < 1:
-    print("This program is licensed under GPLv2 and comes with ABSOLUTELY NO WARRANTY.")
-    print("Usage: cgaimage.py [help, create, pattern]")
-    sys.exit(0)
+def isModeValid(mode):
+    return (mode in m1bpp+m2Bpp+m2bpp+m512)
 
-if sys.argv[0].lower() == "help":
-    if len(sys.argv) > 1:
-        # This is a specific help command
-        if sys.argv[1].lower() == "4cm":
-            print("4 color greyscale")
-            print("320x200 COMP")
-            print("Palette: gimp-palettes/p4cm.gpl")
-        elif sys.argv[1].lower() == "4c0":
-            print("4 color palette 0")
-            print("320x200 CGA")
-            print("Palette: gimp-palettes/p4c0.gpl")
-        elif sys.argv[1].lower() == "4c1":
-            print("4 color palette 1")
-            print("320x200 CGA")
-            print("Palette: gimp-palettes/p4c1.gpl")
-        elif sys.argv[1].lower() == "2c":
-            print("2 color monochrome")
-            print("640x200 CGA")
-            print("Palette: N/A")
-        elif sys.argv[1].lower() == "256co0":
-            print("256 color")
-            print("80 x100 COMP")
-            print("Palette: gimp-palettes/p256co0.gpl")
-        elif sys.argv[1].lower() == "256co1":
-            print("256 color")
-            print("80 x100 COMP")
-            print("Palette: gimp-palettes/p256co1.gpl")
-        elif sys.argv[1].lower() == "512co":
-            print("512 color")
-            print("80 x100 COMP")
-            print("Palette: gimp-palettes/p512o.gpl")
-        elif sys.argv[1].lower() == "256cn0":
-            print("256 color")
-            print("80 x100 COMP")
-            print("Palette: gimp-palettes/p256cn0.gpl")
-        elif sys.argv[1].lower() == "256cn2":
-            print("256 color")
-            print("80 x100 COMP")
-            print("Palette: gimp-palettes/p256cn1.gpl")
-        elif sys.argv[1].lower() == "512cn":
-            print("512 color")
-            print("80 x100 COMP")
-            print("Palette: gimp-palettes/p512n.gpl")
-        else:
+
+def operation_help(topic, _1, _2, _3):
+    messages = {
+        "4cm": "4 color greyscale\n320x200 COMP\ngimp-palettes/p4cm.gpl",
+        "4c0": "4 color palette 0\n320x200 CGA\ngimp-palettes/p4c0.gpl",
+        "4c1": "4 color palette 1\n320x200 CGA\ngimp-palettes/p4c1.gpl",
+        "2c":  "2 color monochrome\n640x200 CGA\nN/A",
+        "256co0":"256 color\n80 x100 COMP\ngimp-palettes/p256co0.gpl",
+        "256co1":"256 color\n80 x100 COMP\ngimp-palettes/p256co1.gpl",
+        "512co": "512 color\n80 x100 COMP\ngimp-palettes/p512o.gpl",
+        "256cn0":"256 color\n80 x100 COMP\ngimp-palettes/p256cn0.gpl",
+        "256cn1":"256 color\n80 x100 COMP\ngimp-palettes/p256cn1.gpl",
+        "512cn": "512 color\n80 x100 COMP\ngimp-palettes/p512n.gpl"
+
+    }
+    if topic:
+        try:
+            print(messages[topic])
+        except Exception as e:
             print("Invalid palette.")
-        sys.exit(0)
     else:
-        # This is a generic help command
         print("To get information on a specific mode, use |cgaimage.py help [mode]|")
         print("All modes supported are as follows")
         print("4cm   : 4 color monochrome 320x200 COMP")
@@ -138,199 +105,201 @@ if sys.argv[0].lower() == "help":
         print("256cn0: 256 color palette0 80 x100 COMP")
         print("256cn1: 256 color palette1 80 x100 COMP")
         print("512cn : 512 color          80 x100 COMP")
-    sys.exit(0)
-elif sys.argv[0].lower() == "create":
-    if len(sys.argv) < 4:
-        print("Usage:")
-        print("cgaimage.py create [mode] [input file] [output file]")
-        sys.exit(0)
-    mode = sys.argv[1].lower()
-    im = Image.open(sys.argv[2])
+
+
+def _saveCGARam(odd, even, outputfile, splitFile=False):
+    # File saving
+    count = 0 # Amount of bytes written
+    if (splitFile):
+        evenfile = open(outputfile+"even", "wb") # Mixing up the filenames was wrong. CGA starts at 0.
+    for byte in even:
+        count = count + 1
+        outputfile.write(byte)
+        if (splitFile):
+            evenfile.write(byte)
+    if (splitFile):
+        evenfile.close()
+    for byte in range(count, 8192):
+        outputfile.write(int.to_bytes(0,1,"little"))
+    if (splitFile):
+        oddfile = open(outputfile+"odd", "wb")
+    for byte in odd:
+        outputfile.write(byte)
+        if (splitFile):
+            oddfile.write(byte)
+    if (splitFile):
+        oddfile.close()
+
+    outputfile.close()
+
+def _g2bpp(im, mode, outputfile, splitFile=False, resizeEnable=True):
     size = im.size
+    if (size != (320, 200) and resizeEnable):
+        print("Image size is not correct. Attempting resize.")
+        im = _cropImage(im, size)
+        im = im.resize((320, 200))
+        size = (320,200)
+    # 2 bit per pixel mode
+    even = []
+    odd = []
+    if mode == "4cm":
+        palette = p4cm 
+    elif mode == "4c0":
+        palette = p4c0 
+    elif mode == "4c1":
+        palette = p4c1 
+    if im.mode != "RGB":
+        print("Image is in an unsupported mode!")
+        sys.exit(0)
+    tmpint = 0
+    tmppos = 8
+    for y in range(0, size[1]):
+        for x in range(0, size[0]):
+            tmppos = tmppos - 2
+            tmpint = tmpint + (_getPixel(im,x,y,palette) << tmppos)
+            if (tmppos == 0):
+                # This is the end of the byte.
+                tmppos = 8
+                if (y % 2 == 0):
+                    even.append(tmpint.to_bytes(1,"little")) # Note, this is called even because I'm starting at 0
+                else:
+                    odd.append(tmpint.to_bytes(1,"little"))
+                    # I hate emulating bitwise stuff, and then converting my emulated bitwise stuff into actual byte objects resulting in the question of am I accidentally reversing what I already did? or is this the correct orientation, and then when you look at it later you are incredibly confused on if I intended on reversing the order of the bits, or if it just miraculously lined up. yes this line is long.
+                tmpint = 0 
+    _saveCGARam(odd, even, outputfile, splitFile=splitFile)
+    return im
+
+def _g1bpp(im, mode, outputfile, splitFile=False, resizeEnable=True):
+    size = im.size
+    if (size != (640, 200) and resizeEnable):
+        print("Image size is not correct. Attempting resize.")
+        im = _cropImage(im, size)
+        im = im.resize((640, 200))
+        size = (640,200)
+    even = []
+    odd = []
+    # Two bit per pixel monochrome
+    tmpint = 0
+    tmppos = 8
+    for y in range(0, size[1]):
+        for x in range(0, size[0]):
+            tmppos = tmppos - 1
+            color = im.getpixel((x,y))
+            color = (color[0] << 16) + (color[1] << 8) + color[2]
+            if color > 0x777777:
+                color = 1
+            else:
+                color = 0
+            im.putpixel((x,y), (255*color, 255*color, 255*color))
+            tmpint = tmpint + (color << tmppos)
+            if (tmppos == 0):
+                # This is the end of the byte.
+                tmppos = 8
+                if (y % 2 == 0):
+                    even.append(tmpint.to_bytes(1,"little")) # Note, this is called even because I'm starting at 0
+                else:
+                    odd.append(tmpint.to_bytes(1,"little"))
+                    # I hate emulating bitwise stuff, and then converting my emulated bitwise stuff into actual byte objects resulting in the question of am I accidentally reversing what I already did? or is this the correct orientation, and then when you look at it later you are incredibly confused on if I intended on reversing the order of the bits, or if it just miraculously lined up. yes this line is long.
+                tmpint = 0
+    _saveCGARam(odd, even, outputfile, splitFile=splitFile)
+    return im
+
+def _g2Bpp(im, mode, outputfile, resizeEnable=True):
+    size = im.size
+    if (size != (80, 100) and resizeEnable):
+        print("Image size is not correct. Attempting resize.")
+        im = _cropImage(im, size)
+        im = im.resize((80, 100))
+        size = (80,100)
+    # Two byte per pixel High Color Text mode
+    if mode == "256co0":
+        # Palette 0
+        char = 0x55
+        palette = p256co0
+    elif mode == "256cn0":
+        char = 0x55
+        palette = p256cn0 
+    elif mode == "256co1":
+        char = 0x13
+        palette = p256co1
+    elif mode == "256cn1":
+        char = 0x13
+        palette = p256cn1
+    image = []
+    for y in range(0, size[1]):
+        for x in range(0, size[0]):
+            image.append(int.to_bytes(char, 1, "little"))
+            col = _getPixel(im, x, y, palette) # So turns out I had mixed up the nibbles..
+            col = ((col<<4)&0xf0) + (col>>4)# Nibble correction
+            image.append(int.to_bytes(col, 1, "little"))
+    for byte in image:
+        outputfile.write(byte)
+    outputfile.close()
+    return im
+
+def _g512(im, mode, outputfile, resizeEnable=True):
+    # Two byte per pixel High Color Text mode, 512 color
+    size = im.size
+    if (size != (80, 100) and resizeEnable):
+        print("Image size is not correct. Attempting resize.")
+        im = im.resize((80, 100))
+        size = (80,100)
+    if mode == "512co":
+        palette = p256co0 + p256co1
+    elif mode == "512cn":
+        palette = p256cn0 + p256cn1
+    image = []
+    for y in range(0, size[1]):
+        for x in range(0, size[0]):
+            col = _getPixel(im, x, y, palette) # So turns out I had mixed up the nibbles..
+            if col > 255:
+                # Part of second palette
+                char = 0x13 
+                col = col - 256
+            else:
+                char = 0x55
+            image.append(int.to_bytes(char, 1, "little"))
+            col = ((col<<4)&0xf0) + (col>>4)# Nibble correction
+            image.append(int.to_bytes(col, 1, "little"))
+    for byte in image:
+        outputfile.write(byte)
+    outputfile.close()
+    return im
+
+def operation_create(mode, inputf, outputf, _, comMode=True, splitFile=False, resizeEnable=True, openImage=False, savePostImage=True):
+    if (not inputf or not outputf):
+        print("Usage: cgaimage.py create [mode] [inputfile] [outputfile]")
+        return
+    if not isModeValid(mode):
+        print(mode+" is not a valid mode.")
+        return
+
+    im = Image.open(inputf)
     if (not comMode):
-        outputfile = open(sys.argv[3], "wb")
+        outputfile = open(outputf, "wb")
     else:
         # Copy appropriate com file, then open ab
         if mode in ["4c0", "4cm"]:
-            shutil.copy(cFolder+c4c0, sys.argv[3])
+            shutil.copy(cFolder+c4c0, outputf)
         elif mode == "4c1":
-            shutil.copy(cFolder+c4c1, sys.argv[3])
+            shutil.copy(cFolder+c4c1, outputf)
         elif (mode in m2Bpp) or (mode in m512):
-            shutil.copy(cFolder+c512c, sys.argv[3])
+            shutil.copy(cFolder+c512c, outputf)
         elif mode in m1bpp:
-            shutil.copy(cFolder+c2c, sys.argv[3])
+            shutil.copy(cFolder+c2c, outputf)
         else:
             print("Unsupported mode!")
             sys.exit()
-        outputfile = open(sys.argv[3], "ab")
+        outputfile = open(outputf, "ab")
     if mode in m2bpp:
-        if (size != (320, 200) and resizeEnable):
-            print("Image size is not correct. Attempting resize.")
-            im = cropImage(im, size)
-            im = im.resize((320, 200))
-            size = (320,200)
-        # 2 bit per pixel mode
-        even = []
-        odd = []
-        if mode == "4cm":
-            palette = p4cm 
-        elif mode == "4c0":
-            palette = p4c0 
-        elif mode == "4c1":
-            palette = p4c1
-        if im.mode != "RGB":
-            print("Image is in an unsupported mode!")
-            sys.exit(0)
-        tmpint = 0
-        tmppos = 8
-        for y in range(0, size[1]):
-            for x in range(0, size[0]):
-                tmppos = tmppos - 2
-                tmpint = tmpint + (getPixel(im,x,y,palette) << tmppos)
-                if (tmppos == 0):
-                    # This is the end of the byte.
-                    tmppos = 8
-                    if (y % 2 == 0):
-                        even.append(tmpint.to_bytes(1,"little")) # Note, this is called even because I'm starting at 0
-                    else:
-                        odd.append(tmpint.to_bytes(1,"little"))
-                        # I hate emulating bitwise stuff, and then converting my emulated bitwise stuff into actual byte objects resulting in the question of am I accidentally reversing what I already did? or is this the correct orientation, and then when you look at it later you are incredibly confused on if I intended on reversing the order of the bits, or if it just miraculously lined up. yes this line is long.
-                    tmpint = 0 
-        # File saving
-        count = 0 # Amount of bytes written
-        if (splitFile):
-            evenfile = open(sys.argv[3]+"even", "wb") # Mixing up the filenames was wrong. CGA starts at 0.
-        for byte in even:
-            count = count + 1
-            outputfile.write(byte)
-            if (splitFile):
-                evenfile.write(byte)
-        if (splitFile):
-            evenfile.close()
-        for byte in range(count, 8192):
-            outputfile.write(int.to_bytes(0,1,"little"))
-        if (splitFile):
-            oddfile = open(sys.argv[3]+"odd", "wb")
-        for byte in odd:
-            outputfile.write(byte)
-            if (splitFile):
-                oddfile.write(byte)
-        if (splitFile):
-            oddfile.close()
-
-        outputfile.close()
+        im = _g2bpp(im, mode, outputfile, splitFile=False, resizeEnable=resizeEnable)
     elif mode in m1bpp:
-        if (size != (640, 200) and resizeEnable):
-            print("Image size is not correct. Attempting resize.")
-            im = cropImage(im, size)
-            im = im.resize((640, 200))
-            size = (640,200)
-        even = []
-        odd = []
-        # Two bit per pixel monochrome
-        tmpint = 0
-        tmppos = 8
-        for y in range(0, size[1]):
-            for x in range(0, size[0]):
-                tmppos = tmppos - 1
-                color = im.getpixel((x,y))
-                color = (color[0] << 16) + (color[1] << 8) + color[2]
-                if color > 0x777777:
-                    color = 1
-                else:
-                    color = 0
-                im.putpixel((x,y), (255*color, 255*color, 255*color))
-                tmpint = tmpint + (color << tmppos)
-                if (tmppos == 0):
-                    # This is the end of the byte.
-                    tmppos = 8
-                    if (y % 2 == 0):
-                        even.append(tmpint.to_bytes(1,"little")) # Note, this is called even because I'm starting at 0
-                    else:
-                        odd.append(tmpint.to_bytes(1,"little"))
-                        # I hate emulating bitwise stuff, and then converting my emulated bitwise stuff into actual byte objects resulting in the question of am I accidentally reversing what I already did? or is this the correct orientation, and then when you look at it later you are incredibly confused on if I intended on reversing the order of the bits, or if it just miraculously lined up. yes this line is long.
-                    tmpint = 0
-        count = 0 # Amount of bytes written
-        if (splitFile):
-            evenfile = open(sys.argv[3]+"even", "wb") # Mixing up the filenames was wrong. CGA starts at 0.
-        for byte in even:
-            count = count + 1
-            outputfile.write(byte)
-            if (splitFile):
-                evenfile.write(byte)
-        if (splitFile):
-            evenfile.close()
-        for byte in range(count, 8192):
-            outputfile.write(int.to_bytes(0,1,"little"))
-        if (splitFile):
-            oddfile = open(sys.argv[3]+"odd", "wb")
-        for byte in odd:
-            outputfile.write(byte)
-            if (splitFile):
-                oddfile.write(byte)
-        if (splitFile):
-            oddfile.close()
-
-        outputfile.close()
+        im = _g1bpp(im, mode, outputfile, splitFile=splitFile, resizeEnable=resizeEnable)
     elif mode in m2Bpp:
-        if (size != (80, 100) and resizeEnable):
-            print("Image size is not correct. Attempting resize.")
-            im = cropImage(im, size)
-            im = im.resize((80, 100))
-            size = (80,100)
-        # Two byte per pixel High Color Text mode
-        if mode == "256co0":
-            # Palette 0
-            char = 0x55
-            palette = p256co0
-        elif mode == "256cn0":
-            char = 0x55
-            palette = p256cn0 
-        elif mode == "256co1":
-            char = 0x13
-            palette = p256co1
-        elif mode == "256cn1":
-            char = 0x13
-            palette = p256cn1
-        image = []
-        for y in range(0, size[1]):
-            for x in range(0, size[0]):
-                image.append(int.to_bytes(char, 1, "little"))
-                col = getPixel(im, x, y, palette) # So turns out I had mixed up the nibbles..
-                col = ((col<<4)&0xf0) + (col>>4)# Nibble correction
-                image.append(int.to_bytes(col, 1, "little"))
-        for byte in image:
-            outputfile.write(byte)
-        outputfile.close()
+        im = _g2Bpp(im, mode, outputfile, resizeEnable=resizeEnable)
     elif mode in m512:
-        # Two byte per pixel High Color Text mode, 512 color
-        if (size != (80, 100) and resizeEnable):
-            print("Image size is not correct. Attempting resize.")
-            im = im.resize((80, 100))
-            size = (80,100)
-        if mode == "512co":
-            palette = p256co0 + p256co1
-        elif mode == "512cn":
-            palette = p256cn0 + p256cn1
-        image = []
-        for y in range(0, size[1]):
-            for x in range(0, size[0]):
-                col = getPixel(im, x, y, palette) # So turns out I had mixed up the nibbles..
-                if col > 255:
-                    # Part of second palette
-                    char = 0x13 
-                    col = col - 256
-                else:
-                    char = 0x55
-                image.append(int.to_bytes(char, 1, "little"))
-                col = ((col<<4)&0xf0) + (col>>4)# Nibble correction
-                image.append(int.to_bytes(col, 1, "little"))
-        for byte in image:
-            outputfile.write(byte)
-        outputfile.close()
-    else:
-        print("Invalid mode.")
-        sys.exit(0)
+        im = _g512(im, mode, outputfile, resizeEnable=resizeEnable)
+    
     # Image resizing to correct aspect ratio
     if resizeEnable:
         # Don't bother if resizing isn't enabled
@@ -350,101 +319,61 @@ elif sys.argv[0].lower() == "create":
                     im2.putpixel((x*2,y), im.getpixel((x,y)))
                     im2.putpixel(((x*2)+1,y), im.getpixel((x,y)))
             im = im2
-    im.save("post_"+sys.argv[2], quality=95, subsampling=0)
-    #im.show()
-elif sys.argv[0].lower() == "pattern":
-    # Generate a test pattern
-    if len(sys.argv) < 3:
-        print("Usage:")
-        print("cgaimage.py pattern [mode] [filename]")
-        sys.exit(0)
-    mode = sys.argv[1].lower()
-    if mode in m2bpp:
-        # 2 bit per pixel, 320x200
-        if mode == "4c0":
-            palette = p4c0
-        elif mode == "4c1":
-            palette = p4c1 
-        elif mode == "4cm":
-            palette = p4cm
-        im = Image.new("RGB", (320,200))
-        colorsPerRow = 2
-        colorsPerColumn = 2
-        colorCellWidth = math.floor(320 / colorsPerRow)
-        colorCellHeight = math.floor(200 / colorsPerColumn)
-        for y in range(0, 200):
-            for x in range(0, 320):
-                colorIndex = math.floor(x / colorCellWidth) + (math.floor(y / colorCellHeight) * colorsPerRow)
-                color = palette[colorIndex]
-                colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
-                im.putpixel((x,y), colorT)
-        #im.show()
-    elif mode in m1bpp:
-        # 1 bit per pixel, 640x200
-        if mode == "2c":
-            palette = [0x000000, 0xffffff]
-        im = Image.new("RGB", (640,200))
-        colorsPerRow = 2
-        colorsPerColumn = 1
-        colorCellWidth = math.floor(640 / colorsPerRow)
-        colorCellHeight = math.floor(200 / colorsPerColumn)
-        for y in range(0, 200):
-            for x in range(0, 640):
-                colorIndex = math.floor(x / colorCellWidth) + (math.floor(y / colorCellHeight) * colorsPerRow)
-                color = palette[colorIndex]
-                colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
-                im.putpixel((x,y), colorT)
-        #im.show()
-    elif mode in m2Bpp:
-        # 2 bytes per pixel, 80x100
-        if mode == "256co0":
-            palette = p256co0
-        elif mode == "256cn0":
-            palette = p256cn0
-        elif mode == "256co1":
-            palette = p256co1
-        elif mode == "256cn1":
-            palette = p256cn1
-        else:
-            print("Palette not found")
-            sys.exit(0)
-        im = Image.new("RGB", (80,100))
-        colorsPerRow = 16
-        colorsPerColumn = 16
-        colorCellWidth = math.floor(80 / colorsPerRow)
-        colorCellHeight = math.floor(100 / colorsPerColumn)
-        for y in range(0, 100):
-            for x in range(0, 80):
-                colorIndex = math.floor(x / colorCellWidth) + (math.floor(y / colorCellHeight) * colorsPerRow)
-                if (colorIndex > 255):
-                    colorIndex = 0
-                color = palette[colorIndex]
-                colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
-                im.putpixel((x,y), colorT)
-        #im.show()
-    elif mode in m512:
-        # 2 bytes per pixel, 80x100
-        if mode == "512co":
-            palette = p256co0 + p256co1 
-        elif mode == "512cn":
-            palette = p256cn0 + p256cn1
-        im = Image.new("RGB", (80,100))
-        colorsPerRow = 16
-        colorsPerColumn = 32
-        colorCellWidth = math.floor(80 / colorsPerRow)
-        colorCellHeight = math.floor(100 / colorsPerColumn)
-        for y in range(0, 100):
-            for x in range(0, 80):
-                colorIndex = math.floor(x / colorCellWidth) + (math.floor(y / colorCellHeight) * colorsPerRow)
-                if (colorIndex > 511):
-                    colorIndex = 0
-                color = palette[colorIndex]
-                colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
-                im.putpixel((x,y), colorT)
-    else:
-        print("Mode not supported.", mode)
+    if savePostImage:
+        im.save(sys.argv[2][:-4]+"_post.jpg", quality=95, subsampling=0)
+    if openImage:
+        im.show()
+
+
+def operation_pattern(mode, outputf, _1, _2, openImage=False):
+    if not outputf:
+        print("Usage: cgaimage.py pattern [mode] [outputfile]")
+        return
+    if not isModeValid(mode):
+        print(mode+" is not a valid mode.")
+        return
+
+    modeParameters = {
+        "4c0": [p4c0, (320,200), 2, 2],
+        "4c1": [p4c1, (320,200), 2, 2], 
+        "4cm": [p4cm, (320,200), 2, 2],
+        "2c": [[0x000000, 0xffffff], (640,200), 2, 1],
+        "256co0": [p256co0, (80,100), 16, 16],
+        "256co1": [p256co1, (80,100), 16, 16],
+        "256cn0": [p256cn0, (80,100), 16, 16],
+        "256cn1": [p256cn1, (80,100), 16, 16],
+        "512co": [p256co0+p256co1, (80,100), 16, 32],
+        "512cn": [p256cn0+p256cn1, (80,100), 16, 32],
+    }
+    palette = modeParameters[mode][0]
+    im = Image.new("RGB", modeParameters[mode][1])
+    colorsPerRow = modeParameters[mode][2]
+    colorsPerColumn = modeParameters[mode][3]
+    colorCellWidth = math.floor(im.size[0] / colorsPerRow)
+    colorCellHeight = math.floor(im.size[1] / colorsPerColumn)
+    for y in range(0, im.size[1]):
+        for x in range(0, im.size[0]):
+            colorIndex = math.floor(x / colorCellWidth) + (math.floor(y / colorCellHeight) * colorsPerRow)
+            color = palette[colorIndex%len(palette)]
+            colorT = (color >> 16, (color >> 8)&0xff, color & 0xff)
+            im.putpixel((x,y), colorT)
+    if (openImage):
+        im.open()
     im.save(sys.argv[2], "JPEG", quality=95, subsampling=0)
-else:
-	print("Usage:")
-	print("cgaimage.py [help, create, pattern]")
-	sys.exit(0)
+
+
+operations = {
+    "help": operation_help,
+    "create": operation_create,
+    "pattern": operation_pattern
+}
+
+sys.argv = sys.argv[1:]
+
+#try:
+print("This program is licensed under GPLv2 and comes with ABSOLUTELY NO WARRANTY.")
+for x in range(0,4):
+    sys.argv.append("") # TODO this properly
+operations[sys.argv[0]](sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+#except:
+    #print("Usage: cgaimage.py [help, create, pattern]")
