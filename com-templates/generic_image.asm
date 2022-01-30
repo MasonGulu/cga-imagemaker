@@ -6,20 +6,25 @@ cpu 8086
                 ; 1 = 0xffff iterations
                 ; 10 = ~8 seconds
                 ; 1 = 0.8 seconds
-%define IMAGETYPE       4
+%define IMAGETYPE       5
                 ; Image type
                 ; 0 unchanged
                 ; 1 320x200 palette 0
                 ; 2 320x200 palette 1 
                 ; 3 640x200
                 ; 4 80 x100 composite
+                ; 5 80 x25 text
 %define IMAGEMODE       2
                 ; Mode
                 ; 0 delay and then exit, resetting video
                 ; 1 delay and then exit, don't reset video
                 ; 2 wait for keyboard, reset video
                 ; 3 wait for keyboard, don't reset video
-%define IMAGESIZE       16000
+%if IMAGETYPE = 5
+    %define IMAGESIZE       4000
+%else
+    %define IMAGESIZE       16000
+%endif 
 %define IMAGESTART      0
 
 
@@ -87,6 +92,9 @@ entry:
 
     writetoport CGA_MODE, 0b001001
     ; Enable video again
+%elif IMAGETYPE = 5
+    writetoport CGA_MODE, 9
+    ; Set high res 80x25 color text mode, with 16 colors instead of blinking
 %endif
 
 load_image:
