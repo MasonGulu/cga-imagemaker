@@ -1,0 +1,20 @@
+GIMP Palette
+Name: p16c
+Columns: 16
+#
+  0   0   0	Index 0
+  0   0 170	Index 1
+170   0   0	Index 2
+170   0 170	Index 3
+ 85  85  85	Index 4
+ 85  85 255	Index 5
+170  85   0	Index 6
+  0 170   0	Index 7
+255  85  85	Index 8
+  0 170 170	Index 9
+255  85 255	Index 10
+170 170 170	Index 11
+ 85 255  85	Index 12
+ 85 255 255	Index 13
+255 255  85	Index 14
+255 255 255	Index 15
