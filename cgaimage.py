@@ -23,8 +23,6 @@ import sys
 import math
 import shutil
 
-from numpy import Infinity
-
 # Palettes
 p4c0  = [0x000000, 0x5c9c0c, 0x993100, 0x9e5a02]
 p4c1  = [0x000000, 0x55a6ab, 0x954eab, 0xababab]
@@ -170,7 +168,6 @@ def _g2bpp(im, mode, outputfile, splitFile=False, resizeEnable=True):
                     even.append(tmpint.to_bytes(1,"little")) # Note, this is called even because I'm starting at 0
                 else:
                     odd.append(tmpint.to_bytes(1,"little"))
-                    # I hate emulating bitwise stuff, and then converting my emulated bitwise stuff into actual byte objects resulting in the question of am I accidentally reversing what I already did? or is this the correct orientation, and then when you look at it later you are incredibly confused on if I intended on reversing the order of the bits, or if it just miraculously lined up. yes this line is long.
                 tmpint = 0 
     _saveCGARam(odd, even, outputfile, splitFile=splitFile)
     return im
@@ -334,7 +331,7 @@ def convertToClosestCharacter(im, x, y, foreground, background, fonthashes):
 
     actualforeground = foreground
     actualbackground = background 
-    difference = Infinity
+    difference = math.inf
     charindex = 0
     closestCharIndex = 0
     for fonthash in fonthashes:
@@ -393,8 +390,10 @@ def operation_create(mode, inputf, outputf, _, comMode=True, splitFile=False, re
     if not isModeValid(mode):
         print(mode+" is not a valid mode.")
         return
-
     im = Image.open(inputf)
+    if im.mode != "RGB":
+        print("Image is not in RGB mode, this is not supported.")
+        return
     if (not comMode):
         outputfile = open(outputf, "wb")
     else:
@@ -427,7 +426,7 @@ def operation_create(mode, inputf, outputf, _, comMode=True, splitFile=False, re
     # Image resizing to correct aspect ratio
     if resizeEnable:
         # Don't bother if resizing isn't enabled
-        if mode in m1bpp:
+        if mode in m1bpp or mode in m16:
             # Double height
             im2 = Image.new("RGB", (640,400))
             for x in range(0, 640):
@@ -444,7 +443,7 @@ def operation_create(mode, inputf, outputf, _, comMode=True, splitFile=False, re
                     im2.putpixel(((x*2)+1,y), im.getpixel((x,y)))
             im = im2
     if savePostImage:
-        im.save(sys.argv[2][:-4]+"_post.jpg", quality=95, subsampling=0)
+        im.save(sys.argv[2][:-4]+"_post.png")
     if openImage:
         im.show()
 
@@ -468,6 +467,7 @@ def operation_pattern(mode, outputf, _1, _2, openImage=False):
         "256cn1": [p256cn1, (80,100), 16, 16],
         "512co": [p256co0+p256co1, (80,100), 16, 32],
         "512cn": [p256cn0+p256cn1, (80,100), 16, 32],
+        "16c": [p16c, (320, 200), 4, 4]
     }
     palette = modeParameters[mode][0]
     im = Image.new("RGB", modeParameters[mode][1])
@@ -486,18 +486,22 @@ def operation_pattern(mode, outputf, _1, _2, openImage=False):
     im.save(sys.argv[2], "JPEG", quality=95, subsampling=0)
 
 
-operations = {
-    "help": operation_help,
-    "create": operation_create,
-    "pattern": operation_pattern
-}
+def main():
+    operations = {
+        "help": operation_help,
+        "create": operation_create,
+        "pattern": operation_pattern
+    }
 
-sys.argv = sys.argv[1:]
+    sys.argv = sys.argv[1:]
 
-try:
-    print("This program is licensed under GPLv2 and comes with ABSOLUTELY NO WARRANTY.")
-    for x in range(0,4):
-        sys.argv.append("") # TODO this properly
-    operations[sys.argv[0]](sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-except:
-    print("Usage: cgaimage.py [help, create, pattern]")
+    try:
+        print("This program is licensed under GPLv2 and comes with ABSOLUTELY NO WARRANTY.")
+        for x in range(0,4):
+            sys.argv.append("") # TODO this properly
+        operations[sys.argv[0]](sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    except:
+        print("Usage: cgaimage.py [help, create, pattern]")
+
+if __name__ == "__main__":
+    main()
