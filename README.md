@@ -1,4 +1,4 @@
-# This has been superceded by a (Java port)[https://github.com/MasonGulu/CGA-Image-Maker]
+# This has been superceded by a [Java port](https://github.com/MasonGulu/CGA-Image-Maker)
 
 # cga-imagemaker
 Create COM files from JPG images
